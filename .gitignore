@@ -46,3 +46,7 @@ app.*.map.json
 
 AGENTS.md
 CODEX.md
+config/supabase.local.json
+.env
+.env.*
+!.env.example

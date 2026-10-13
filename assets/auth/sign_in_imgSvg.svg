@@ -1,0 +1,11 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="SVG">
+<path id="Vector" opacity="0.2" d="M2 16C2 23.7268 8.27319 30 16 30C23.7268 30 30 23.7268 30 16C30 8.27319 23.7268 2 16 2C8.27319 2 2 8.27319 2 16V16" stroke="black" stroke-width="1.5"/>
+<path id="Vector_2" d="M13.5 8C13.5 9.37979 14.6202 10.5 16 10.5C17.3798 10.5 18.5 9.37979 18.5 8C18.5 6.62021 17.3798 5.5 16 5.5C14.6202 5.5 13.5 6.62021 13.5 8V8" fill="black"/>
+<path id="Vector_3" d="M5.5 22C5.5 23.3798 6.62021 24.5 8 24.5C9.37979 24.5 10.5 23.3798 10.5 22C10.5 20.6202 9.37979 19.5 8 19.5C6.62021 19.5 5.5 20.6202 5.5 22V22" fill="black"/>
+<path id="Vector_4" d="M21.5 22C21.5 23.3798 22.6202 24.5 24 24.5C25.3798 24.5 26.5 23.3798 26.5 22C26.5 20.6202 25.3798 19.5 24 19.5C22.6202 19.5 21.5 20.6202 21.5 22V22" fill="black"/>
+<path id="Vector_5" d="M16 8L8 22M16 8L24 22M8 22H24" stroke="black" stroke-width="1.25" stroke-dasharray="2 2"/>
+<path id="Vector_6" d="M13 16C13 17.6557 14.3443 19 16 19C17.6557 19 19 17.6557 19 16C19 14.3443 17.6557 13 16 13C14.3443 13 13 14.3443 13 16V16" fill="black"/>
+<path id="Vector_7" d="M16 13V19M13 16H19" stroke="white" stroke-width="1.2" stroke-linecap="round"/>
+</g>
+</svg>

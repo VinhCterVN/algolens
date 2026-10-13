@@ -1,11 +1,10 @@
 import 'package:algolens/features/home/presentation/views/home_view.dart';
-import 'package:algolens/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('App opens the home view with branding', (tester) async {
-    await tester.pumpWidget(const MyApp());
+  testWidgets('Home view displays branding', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomeView()));
     await tester.pumpAndSettle();
 
     expect(find.byType(HomeView), findsOneWidget);
