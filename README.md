@@ -20,7 +20,7 @@ lib/
     data/                           # Supabase service, repository, session storage
     presentation/
       views/                        # Sign in, registration, and recovery
-      view_models/                  # Form and authentication state
+      view_models/                  # Riverpod form and session state
       widgets/                      # Shared auth UI and Figma SVG icons
   features/home/presentation/
     views/home_view.dart            # Simple branded home screen
@@ -49,6 +49,10 @@ See [COMMIT_GUIDE.md](COMMIT_GUIDE.md) for commit and pull request conventions.
 
 See [Supabase Auth Setup](docs/SUPABASE_AUTH_SETUP.md) to configure the dashboard,
 connect the Flutter app, and sign in with email/password or OAuth.
+
+Authentication uses Riverpod providers and GoRouter redirects. Auth transitions
+respect the device's reduced-motion preference. Copy the OTP email templates in
+`supabase/templates/` into the Supabase dashboard to enable code-based signup and recovery.
 
 The Supabase schema, optional taxonomy seed, permissions, and setup instructions
 are documented in [supabase/README.md](supabase/README.md).

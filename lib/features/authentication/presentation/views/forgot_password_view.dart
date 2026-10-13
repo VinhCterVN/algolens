@@ -1,27 +1,34 @@
 import 'dart:async';
 
 import 'package:algolens/features/authentication/data/auth_repository.dart';
+import 'package:algolens/features/authentication/data/auth_repository_provider.dart';
 import 'package:algolens/features/authentication/presentation/view_models/auth_form_view_model.dart';
 import 'package:algolens/features/authentication/presentation/view_models/auth_session_controller.dart';
 import 'package:algolens/features/authentication/presentation/view_models/auth_validators.dart';
+import 'package:algolens/features/authentication/presentation/widgets/auth_stage_transition.dart';
 import 'package:algolens/features/authentication/presentation/widgets/auth_widgets.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class ForgotPasswordView extends StatefulWidget {
-  const ForgotPasswordView({super.key, required this.repository, required this.session});
-
-  final AuthRepository repository;
-  final AuthSessionController session;
+class ForgotPasswordView extends ConsumerStatefulWidget {
+  const ForgotPasswordView({super.key});
 
   @override
-  State<ForgotPasswordView> createState() => _ForgotPasswordViewState();
+  ConsumerState<ForgotPasswordView> createState() => _ForgotPasswordViewState();
 }
 
-class _ForgotPasswordViewState extends State<ForgotPasswordView> {
+class _ForgotPasswordViewState extends ConsumerState<ForgotPasswordView> {
   final _emailForm = GlobalKey<FormState>(), _passwordForm = GlobalKey<FormState>();
   final _email = TextEditingController(), _password = TextEditingController(), _confirm = TextEditingController();
-  final _model = AuthFormViewModel();
+
+  AuthFormViewModel get _model => ref.read(authFormProvider(AuthFormId.recovery).notifier);
+
+  AuthRepository get _repository => ref.read(authRepositoryProvider);
+
+  AuthSessionController get _session => ref.read(authSessionProvider.notifier);
+
+  AuthSessionState get _sessionState => ref.read(authSessionProvider);
   String? _sentEmail;
   String _code = '';
   int _resendSeconds = 0;
@@ -34,7 +41,6 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     _email.dispose();
     _password.dispose();
     _confirm.dispose();
-    _model.dispose();
     super.dispose();
   }
 
@@ -55,7 +61,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     if (_resendSeconds > 0 || !_emailForm.currentState!.validate()) return;
     final email = _email.text.trim();
     final success = await _model.run(
-      () => widget.repository.sendRecoveryCode(email),
+      () => _repository.sendRecoveryCode(email),
       successMessage: 'If an account exists for this email, a recovery email has been sent.',
     );
     if (success && mounted) {
@@ -70,42 +76,45 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
     if (_sentEmail == null) return;
     final error = AuthValidators.code(_code);
     if (error != null) {
-      setState(() => _model.error = error);
+      _model.showError(error);
       return;
     }
-    widget.session.beginRecovery();
-    final success = await _model.run(() => widget.repository.verifyRecoveryCode(_sentEmail!, _code));
-    if (!success) widget.session.finishRecovery();
+    _session.beginRecovery();
+    final success = await _model.run(() => _repository.verifyRecoveryCode(_sentEmail!, _code));
+    if (!success && mounted) _session.finishRecovery();
   }
 
   Future<void> _updatePassword() async {
     if (!_passwordForm.currentState!.validate()) return;
-    final success = await _model.run(() => widget.repository.updatePassword(_password.text));
-    if (success) widget.session.finishRecovery();
+    final success = await _model.run(() => _repository.updatePassword(_password.text));
+    if (success && mounted) _session.finishRecovery();
   }
 
   Future<void> _back() async {
     if (_model.busy) return;
-    if (widget.session.isRecovering && widget.session.isSignedIn) {
-      final success = await _model.run(widget.repository.signOut);
+    if (_sessionState.isRecovering && _sessionState.isSignedIn) {
+      final success = await _model.run(_repository.signOut);
       if (!success) return;
     }
-    widget.session.finishRecovery();
+    if (!mounted) return;
+    _session.finishRecovery();
     if (mounted) context.go('/login');
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: Listenable.merge([_model, widget.session]),
-    builder: (context, _) {
-      final verified = widget.session.isRecovering && widget.session.isSignedIn;
-      return AuthScaffold(
-        title: 'Reset Password',
-        topPadding: 8,
-        assetPrefix: 'forgot',
-        backAsset: 'imgContainer8',
-        userAsset: 'imgContainer9',
-        onBack: _back,
+  Widget build(BuildContext context) {
+    ref.watch(authFormProvider(AuthFormId.recovery));
+    ref.watch(authSessionProvider);
+    final verified = _sessionState.isRecovering && _sessionState.isSignedIn;
+    return AuthScaffold(
+      title: 'Reset Password',
+      topPadding: 8,
+      assetPrefix: 'forgot',
+      backAsset: 'imgContainer8',
+      userAsset: 'imgContainer9',
+      onBack: _back,
+      child: AuthStageTransition(
+        stage: verified ? 'password' : 'recovery-code',
         child: Column(
           children: [
             SizedBox(
@@ -208,7 +217,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                 leading: const FigmaIcon('forgot_imgContainer6'),
                 onPressed: _model.busy ? null : _back,
               ),
-              AuthFeedback(_model),
+              AuthFeedback(ref.watch(authFormProvider(AuthFormId.recovery))),
               const SizedBox(height: 24),
               AuthCard(
                 padding: 16,
@@ -285,7 +294,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                       ),
                       const SizedBox(height: 16),
                       AuthButton(label: 'Save New Password', onPressed: _updatePassword, busy: _model.busy),
-                      AuthFeedback(_model),
+                      AuthFeedback(ref.watch(authFormProvider(AuthFormId.recovery))),
                       TextButton(onPressed: _model.busy ? null : _back, child: const Text('Cancel recovery')),
                     ],
                   ),
@@ -314,7 +323,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
             Text('AlgoLens • Account Recovery', style: mono(10)),
           ],
         ),
-      );
-    },
-  );
+      ),
+    );
+  }
 }

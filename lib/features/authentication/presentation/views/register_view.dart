@@ -1,23 +1,28 @@
+import 'package:algolens/core/theme/app_motion.dart';
 import 'package:algolens/features/authentication/data/auth_repository.dart';
+import 'package:algolens/features/authentication/data/auth_repository_provider.dart';
 import 'package:algolens/features/authentication/presentation/view_models/auth_form_view_model.dart';
 import 'package:algolens/features/authentication/presentation/view_models/auth_validators.dart';
+import 'package:algolens/features/authentication/presentation/widgets/auth_stage_transition.dart';
 import 'package:algolens/features/authentication/presentation/widgets/auth_widgets.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class RegisterView extends StatefulWidget {
-  const RegisterView({super.key, required this.repository});
-
-  final AuthRepository repository;
+class RegisterView extends ConsumerStatefulWidget {
+  const RegisterView({super.key});
 
   @override
-  State<RegisterView> createState() => _RegisterViewState();
+  ConsumerState<RegisterView> createState() => _RegisterViewState();
 }
 
-class _RegisterViewState extends State<RegisterView> {
+class _RegisterViewState extends ConsumerState<RegisterView> {
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController(), _email = TextEditingController(), _password = TextEditingController();
-  final _model = AuthFormViewModel();
+
+  AuthFormViewModel get _model => ref.read(authFormProvider(AuthFormId.register).notifier);
+
+  AuthRepository get _repository => ref.read(authRepositoryProvider);
   bool _visible = false, _educator = false, _accepted = false;
   String _experience = 'beginner', _code = '';
   String? _confirmationEmail;
@@ -27,20 +32,19 @@ class _RegisterViewState extends State<RegisterView> {
     _name.dispose();
     _email.dispose();
     _password.dispose();
-    _model.dispose();
     super.dispose();
   }
 
   Future<void> _register() async {
     if (!_form.currentState!.validate()) return;
     if (!_accepted) {
-      setState(() => _model.error = 'Please read and accept the academic guidelines.');
+      _model.showError('Please read and accept the academic guidelines.');
       return;
     }
     final email = _email.text.trim();
     bool signedIn = false;
     final success = await _model.run(() async {
-      signedIn = await widget.repository.register(
+      signedIn = await _repository.register(
         name: _name.text,
         email: email,
         password: _password.text,
@@ -55,18 +59,23 @@ class _RegisterViewState extends State<RegisterView> {
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _model,
-    builder: (context, _) => AuthScaffold(
+  Widget build(BuildContext context) {
+    ref.watch(authFormProvider(AuthFormId.register));
+    return AuthScaffold(
       title: 'Register Account',
       topPadding: 0,
       assetPrefix: 'register',
       backAsset: 'imgContainer11',
       userAsset: 'imgContainer12',
       onBack: () => context.go('/login'),
-      child: AuthCard(child: _confirmationEmail == null ? _registrationForm(context) : _confirmation(context)),
-    ),
-  );
+      child: AuthCard(
+        child: AuthStageTransition(
+          stage: _confirmationEmail == null ? 'registration' : 'confirmation',
+          child: _confirmationEmail == null ? _registrationForm(context) : _confirmation(context),
+        ),
+      ),
+    );
+  }
 
   Widget _registrationForm(BuildContext context) {
     final rules = AuthValidators.passwordRules(_password.text);
@@ -263,7 +272,7 @@ class _RegisterViewState extends State<RegisterView> {
               busy: _model.busy,
               trailing: const FigmaIcon('register_imgContainer9'),
             ),
-            AuthFeedback(_model),
+            AuthFeedback(ref.watch(authFormProvider(AuthFormId.register))),
             const SizedBox(height: 8),
             AuthButton(
               label: 'Quick Sign Up with GitHub',
@@ -273,10 +282,10 @@ class _RegisterViewState extends State<RegisterView> {
                   ? null
                   : () {
                       if (!_accepted) {
-                        setState(() => _model.error = 'Please read and accept the academic guidelines.');
+                        _model.showError('Please read and accept the academic guidelines.');
                         return;
                       }
-                      _model.run(() => widget.repository.signInWithProvider(AuthProvider.github));
+                      _model.run(() => _repository.signInWithProvider(AuthProvider.github));
                     },
             ),
             const SizedBox(height: 24),
@@ -329,7 +338,8 @@ class _RegisterViewState extends State<RegisterView> {
       button: true,
       child: InkWell(
         onTap: _model.busy ? null : () => setState(() => _educator = educator),
-        child: Container(
+        child: AnimatedContainer(
+          duration: AppMotion.duration(context, AppMotion.fast),
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(color: selected ? Colors.black : authPanel, borderRadius: BorderRadius.circular(8)),
@@ -380,18 +390,18 @@ class _RegisterViewState extends State<RegisterView> {
         onPressed: () {
           final error = AuthValidators.code(_code);
           if (error != null) {
-            setState(() => _model.error = error);
+            _model.showError(error);
             return;
           }
-          _model.run(() => widget.repository.verifyEmail(_confirmationEmail!, _code));
+          _model.run(() => _repository.verifyEmail(_confirmationEmail!, _code));
         },
       ),
-      AuthFeedback(_model),
+      AuthFeedback(ref.watch(authFormProvider(AuthFormId.register))),
       TextButton(
         onPressed: _model.busy
             ? null
             : () => _model.run(
-                () => widget.repository.resendConfirmation(_confirmationEmail!),
+                () => _repository.resendConfirmation(_confirmationEmail!),
                 successMessage: 'If confirmation is needed, a new email has been sent.',
               ),
         child: const Text('Resend confirmation email'),

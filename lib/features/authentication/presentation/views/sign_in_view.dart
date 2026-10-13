@@ -1,44 +1,46 @@
 import 'package:algolens/features/authentication/data/auth_repository.dart';
+import 'package:algolens/features/authentication/data/auth_repository_provider.dart';
 import 'package:algolens/features/authentication/presentation/view_models/auth_form_view_model.dart';
 import 'package:algolens/features/authentication/presentation/view_models/auth_validators.dart';
 import 'package:algolens/features/authentication/presentation/widgets/auth_widgets.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class SignInView extends StatefulWidget {
-  const SignInView({super.key, required this.repository});
-
-  final AuthRepository repository;
+class SignInView extends ConsumerStatefulWidget {
+  const SignInView({super.key});
 
   @override
-  State<SignInView> createState() => _SignInViewState();
+  ConsumerState<SignInView> createState() => _SignInViewState();
 }
 
-class _SignInViewState extends State<SignInView> {
+class _SignInViewState extends ConsumerState<SignInView> {
   final _form = GlobalKey<FormState>();
   final _email = TextEditingController();
   final _password = TextEditingController();
-  final _model = AuthFormViewModel();
+
+  AuthFormViewModel get _model => ref.read(authFormProvider(AuthFormId.signIn).notifier);
+
+  AuthRepository get _repository => ref.read(authRepositoryProvider);
   bool _visible = false, _remember = true, _educator = false;
 
   @override
   void dispose() {
     _email.dispose();
     _password.dispose();
-    _model.dispose();
     super.dispose();
   }
 
   Future<void> _signIn() async {
     if (_form.currentState!.validate()) {
-      await _model.run(() => widget.repository.signIn(_email.text, _password.text, remember: _remember));
+      await _model.run(() => _repository.signIn(_email.text, _password.text, remember: _remember));
     }
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _model,
-    builder: (context, _) => AuthScaffold(
+  Widget build(BuildContext context) {
+    ref.watch(authFormProvider(AuthFormId.signIn));
+    return AuthScaffold(
       title: 'Sign In',
       assetPrefix: 'sign_in',
       backAsset: 'imgContainer6',
@@ -165,7 +167,7 @@ class _SignInViewState extends State<SignInView> {
                       busy: _model.busy,
                       trailing: const Text('→'),
                     ),
-                    AuthFeedback(_model),
+                    AuthFeedback(ref.watch(authFormProvider(AuthFormId.signIn))),
                   ],
                 ),
               ),
@@ -259,8 +261,8 @@ class _SignInViewState extends State<SignInView> {
           ),
         ],
       ),
-    ),
-  );
+    );
+  }
 
   Widget _provider(String label, String asset, AuthProvider provider, String tag) => SizedBox(
     width: double.infinity,
@@ -274,7 +276,7 @@ class _SignInViewState extends State<SignInView> {
       ),
       onPressed: _model.busy
           ? null
-          : () => _model.run(() => widget.repository.signInWithProvider(provider, remember: _remember)),
+          : () => _model.run(() => _repository.signInWithProvider(provider, remember: _remember)),
       child: Row(
         children: [
           FigmaIcon(asset),

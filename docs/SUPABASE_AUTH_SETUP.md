@@ -84,6 +84,23 @@ that access after signup.
 
 ## 5. Enable the Six-Digit Email Flows
 
+If signup emails contain only a fallback link, open **Authentication → Email
+Templates → Confirm signup** (sometimes grouped under **Emails → Templates**).
+Replace the body with the contents of
+[`confirm_signup.html`](../supabase/templates/confirm_signup.html), then save.
+Keep **Confirm email** enabled so registration waits for verification.
+
+The essential variable is `{{ .Token }}`, not `{{ .TokenHash }}` or
+`{{ .ConfirmationURL }}`. The supplied template contains the OTP and omits the
+fallback link. Saving a template does not change emails already delivered:
+return to the registration verification screen and request a new confirmation
+email after the sending cooldown. The app verifies signup codes using `OtpType.email`.
+
+For password recovery, paste
+[`reset_password.html`](../supabase/templates/reset_password.html) into the
+**Reset password** template. Files in this repository do not automatically update
+hosted Supabase templates; paste and save each one in the dashboard.
+
 Under **Authentication → Email Templates**, include the token in the **Reset
 Password** template. Include it in **Confirm Signup** too if you want users to
 enter a code in the registration screen:
@@ -113,6 +130,19 @@ and enter its client ID/secret in Supabase. This HTTPS provider callback is dist
 from the mobile redirect above. The existing provider buttons launch the OAuth flow.
 Institutional SAML SSO requires separate provider setup and is not implemented by
 the Learner/Educator selector.
+
+## Auth State and Motion
+
+Riverpod's `authRepositoryProvider` supplies the configured Supabase repository.
+`authSessionProvider` owns session/recovery state and drives GoRouter redirects.
+The auto-disposed `authFormProvider` family isolates loading, errors, and messages
+for sign-in, registration, and recovery. Text controllers and short-lived field
+preferences stay local to their screens; passwords are not stored in providers.
+
+Auth routes fade and slide slightly, buttons animate presses/loading, role and
+checkbox selection colors transition, and verification/recovery stages and
+feedback fade between states. Durations are centralized in `AppMotion`; transforms
+and transitions are disabled when the device requests reduced motion.
 
 ## Troubleshooting
 

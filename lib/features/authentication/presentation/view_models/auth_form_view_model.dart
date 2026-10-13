@@ -1,37 +1,47 @@
 import 'package:algolens/features/authentication/data/auth_repository.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AuthFormViewModel extends ChangeNotifier {
-  bool busy = false;
-  String? error;
-  String? message;
-  bool _disposed = false;
+enum AuthFormId { signIn, register, recovery }
 
-  Future<bool> run(Future<void> Function() action, {String? successMessage}) async {
-    if (busy) return false;
-    busy = true;
-    error = null;
-    message = null;
-    notifyListeners();
-    try {
-      await action();
-      message = successMessage;
-      return true;
-    } on AuthFailure catch (failure) {
-      error = failure.message;
-      return false;
-    } catch (_) {
-      error = 'Something went wrong. Please try again.';
-      return false;
-    } finally {
-      busy = false;
-      if (!_disposed) notifyListeners();
-    }
-  }
+class AuthFormState {
+  const AuthFormState({this.busy = false, this.error, this.message});
+
+  final bool busy;
+  final String? error;
+  final String? message;
+}
+
+final authFormProvider = NotifierProvider.autoDispose.family<AuthFormViewModel, AuthFormState, AuthFormId>(
+  AuthFormViewModel.new,
+);
+
+class AuthFormViewModel extends Notifier<AuthFormState> {
+  AuthFormViewModel(this.form);
+
+  final AuthFormId form;
 
   @override
-  void dispose() {
-    _disposed = true;
-    super.dispose();
+  AuthFormState build() => const AuthFormState();
+
+  bool get busy => state.busy;
+
+  void showError(String message) {
+    if (ref.mounted) state = AuthFormState(error: message);
+  }
+
+  Future<bool> run(Future<void> Function() action, {String? successMessage}) async {
+    if (!ref.mounted || state.busy) return false;
+    state = const AuthFormState(busy: true);
+    try {
+      await action();
+      if (ref.mounted) state = AuthFormState(message: successMessage);
+      return true;
+    } on AuthFailure catch (failure) {
+      if (ref.mounted) state = AuthFormState(error: failure.message);
+      return false;
+    } catch (_) {
+      if (ref.mounted) state = const AuthFormState(error: 'Something went wrong. Please try again.');
+      return false;
+    }
   }
 }

@@ -1,5 +1,7 @@
+import 'package:algolens/core/theme/app_motion.dart';
 import 'package:algolens/core/theme/app_theme.dart';
 import 'package:algolens/features/authentication/presentation/view_models/auth_form_view_model.dart';
+import 'package:algolens/features/authentication/presentation/widgets/auth_stage_transition.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -231,7 +233,7 @@ class AuthField extends StatelessWidget {
   );
 }
 
-class AuthButton extends StatelessWidget {
+class AuthButton extends StatefulWidget {
   const AuthButton({
     super.key,
     required this.label,
@@ -248,33 +250,65 @@ class AuthButton extends StatelessWidget {
   final Widget? leading, trailing;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: double.infinity,
-    child: FilledButton(
-      style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(48),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        backgroundColor: secondary ? authPanel : Colors.black,
-        foregroundColor: secondary ? authInk : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-      onPressed: busy ? null : onPressed,
-      child: busy
-          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (leading != null) ...[leading!, const SizedBox(width: 8)],
-                Flexible(
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+  State<AuthButton> createState() => _AuthButtonState();
+}
+
+class _AuthButtonState extends State<AuthButton> {
+  bool _pressed = false;
+
+  void _press(bool value) {
+    if (mounted && _pressed != value) setState(() => _pressed = value);
+  }
+
+  @override
+  Widget build(BuildContext context) => Listener(
+    onPointerDown: (_) {
+      if (!widget.busy && widget.onPressed != null) _press(true);
+    },
+    onPointerUp: (_) => _press(false),
+    onPointerCancel: (_) => _press(false),
+    child: AnimatedScale(
+      scale: _pressed && !AppMotion.reduced(context) ? AppMotion.pressScale : 1,
+      duration: AppMotion.duration(context, AppMotion.fast),
+      curve: AppMotion.curve,
+      child: SizedBox(
+        width: double.infinity,
+        child: FilledButton(
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(48),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            backgroundColor: widget.secondary ? authPanel : Colors.black,
+            foregroundColor: widget.secondary ? authInk : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          onPressed: widget.busy ? null : widget.onPressed,
+          child: AnimatedSwitcher(
+            duration: AppMotion.duration(context, AppMotion.fast),
+            child: widget.busy
+                ? const SizedBox(
+                    key: ValueKey('loading'),
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Row(
+                    key: const ValueKey('label'),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (widget.leading != null) ...[widget.leading!, const SizedBox(width: 8)],
+                      Flexible(
+                        child: Text(
+                          widget.label,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      if (widget.trailing != null) ...[const SizedBox(width: 8), widget.trailing!],
+                    ],
                   ),
-                ),
-                if (trailing != null) ...[const SizedBox(width: 8), trailing!],
-              ],
-            ),
+          ),
+        ),
+      ),
     ),
   );
 }
@@ -282,28 +316,31 @@ class AuthButton extends StatelessWidget {
 class AuthFeedback extends StatelessWidget {
   const AuthFeedback(this.model, {super.key});
 
-  final AuthFormViewModel model;
+  final AuthFormState model;
 
   @override
   Widget build(BuildContext context) {
     final text = model.error ?? model.message;
-    return text == null
-        ? const SizedBox.shrink()
-        : Padding(
-            padding: const EdgeInsets.only(top: 16),
-            child: Semantics(
-              liveRegion: true,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: authPanel, borderRadius: BorderRadius.circular(8)),
-                child: Text(
-                  text,
-                  style: TextStyle(fontSize: 13, color: model.error == null ? authInk : const Color(0xFF9C2020)),
+    return AuthStageTransition(
+      stage: (model.error, model.message),
+      child: text == null
+          ? const SizedBox.shrink()
+          : Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Semantics(
+                liveRegion: true,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: authPanel, borderRadius: BorderRadius.circular(8)),
+                  child: Text(
+                    text,
+                    style: TextStyle(fontSize: 13, color: model.error == null ? authInk : const Color(0xFF9C2020)),
+                  ),
                 ),
               ),
             ),
-          );
+    );
   }
 }
 
@@ -331,7 +368,8 @@ class SessionCheckbox extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(
+            AnimatedContainer(
+              duration: AppMotion.duration(context, AppMotion.fast),
               width: 20,
               height: 20,
               alignment: Alignment.center,
@@ -342,7 +380,7 @@ class SessionCheckbox extends StatelessWidget {
               child: value
                   ? checkAsset == null
                         ? const Icon(Icons.check, size: 14, color: Colors.white)
-                        : FigmaIcon(checkAsset!, width: 11.188, height: 8.531)
+                        : FigmaIcon(checkAsset!, color: Colors.white, width: 11.188, height: 8.531)
                   : null,
             ),
             const SizedBox(width: 8),

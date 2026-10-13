@@ -1,41 +1,48 @@
 import 'dart:async';
 
 import 'package:algolens/features/authentication/data/auth_repository.dart';
-import 'package:flutter/foundation.dart';
+import 'package:algolens/features/authentication/data/auth_repository_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AuthSessionController extends ChangeNotifier {
-  AuthSessionController(this.repository) : isSignedIn = repository.isSignedIn {
-    _subscription = repository.sessionChanges.listen(
+class AuthSessionState {
+  const AuthSessionState({this.isSignedIn = false, this.isRecovering = false});
+
+  final bool isSignedIn;
+  final bool isRecovering;
+}
+
+final authSessionProvider = NotifierProvider<AuthSessionController, AuthSessionState>(AuthSessionController.new);
+
+class AuthSessionController extends Notifier<AuthSessionState> {
+  @override
+  AuthSessionState build() {
+    final repository = ref.watch(authRepositoryProvider);
+    final subscription = repository.sessionChanges.listen(
       (event) {
-        isSignedIn = event != AuthSessionEvent.signedOut;
-        if (event == AuthSessionEvent.passwordRecovery) isRecovering = true;
-        if (event == AuthSessionEvent.signedOut) isRecovering = false;
-        notifyListeners();
+        // Initial events may arrive while the provider is still building.
+        scheduleMicrotask(() {
+          if (!ref.mounted) return;
+          state = AuthSessionState(
+            isSignedIn: event != AuthSessionEvent.signedOut,
+            isRecovering:
+                event == AuthSessionEvent.passwordRecovery ||
+                (state.isRecovering && event != AuthSessionEvent.signedOut),
+          );
+        });
       },
-      onError: (Object error) {
-        notifyListeners();
+      onError: (Object _) {
+        // Explicit sign-out events clear the session; temporary refresh errors do not.
       },
     );
+    ref.onDispose(() => unawaited(subscription.cancel()));
+    return AuthSessionState(isSignedIn: repository.isSignedIn);
   }
 
-  final AuthRepository repository;
-  late final StreamSubscription<AuthSessionEvent> _subscription;
-  bool isSignedIn;
-  bool isRecovering = false;
-
   void beginRecovery() {
-    isRecovering = true;
-    notifyListeners();
+    if (ref.mounted) state = AuthSessionState(isSignedIn: state.isSignedIn, isRecovering: true);
   }
 
   void finishRecovery() {
-    isRecovering = false;
-    notifyListeners();
-  }
-
-  @override
-  void dispose() {
-    _subscription.cancel();
-    super.dispose();
+    if (ref.mounted) state = AuthSessionState(isSignedIn: state.isSignedIn);
   }
 }
